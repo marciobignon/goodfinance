@@ -8,8 +8,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
@@ -23,7 +22,7 @@
         .expense{color:#ef4444}
         .total{color:#3b82f6}
         .tabs{display:flex;gap:5px;margin-bottom:20px;flex-wrap:wrap}
-        .tab{flex:1;min-width:80px;padding:12px 8px;background:rgba(255,255,255,0.9);border:none;border-radius:12px;cursor:pointer;font-size:0.8rem;font-weight:600;transition:all 0.3s}
+        .tab{flex:1;min-width:70px;padding:12px 6px;background:rgba(255,255,255,0.9);border:none;border-radius:12px;cursor:pointer;font-size:0.75rem;font-weight:600;transition:all 0.3s}
         .tab.active{background:#667eea;color:white;transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,0.4)}
         .form-group{margin-bottom:15px}
         .form-group label{display:block;margin-bottom:8px;color:#374151;font-weight:600}
@@ -81,6 +80,7 @@
         <button class="tab" onclick="showTab('transactions')">Transações</button>
         <button class="tab" onclick="showTab('bills')">Contas</button>
         <button class="tab" onclick="showTab('goals')">Metas</button>
+        <button class="tab" onclick="showTab('backup')">Backup</button>
     </div>
     
     <div id="dashboard">
@@ -99,9 +99,7 @@
         
         <div class="card">
             <button class="btn btn-info" onclick="exportToPDF()">📄 Exportar Relatório</button>
-            <p style="text-align:center;color:#6b7280;font-size:0.8rem;margin-top:8px">
-                Gera arquivo .txt para compartilhar
-            </p>
+            <p style="text-align:center;color:#6b7280;font-size:0.8rem;margin-top:8px">Gera arquivo .txt para compartilhar</p>
         </div>
         
         <div class="card">
@@ -155,16 +153,13 @@
                     <option value="Mercado">🛒 Mercado</option>
                     <option value="Farmácia">💊 Farmácia</option>
                     <option value="Pessoal">👔 Pessoal</option>
-                    <option value="Extra Casa/Estética">🔧 Extra Casa/Estética</option>
-                    <option value="outros">🔧 Outros</option>
-                    <option value="Cartão>💳 Cartão</option>
+                    <option value="Extra">🔧 Extra</option>
                     <option value="Bens Adquiridos">🏠 Bens</option>
                     <option value="Tecnologia">💻 Tecnologia</option>
                     <option value="Estética">💅 Estética</option>
-                    <option value="Projetos">🧘 Projetos</option>
+                    <option value="Projeto Cura Interior">🧘 Cura Interior</option>
                     <option value="Despesas Fixas">📌 Despesas Fixas</option>
                     <option value="Dízimos">⛪ Dízimos</option>
-                     <option value="Ofertas">⛪ Ofertas</option>
                     <option value="Papelaria">📝 Papelaria</option>
                 </select>
             </div>
@@ -279,14 +274,49 @@
             <div id="goals-list"></div>
         </div>
     </div>
+    
+    <div id="backup" class="hidden">
+        <div class="card">
+            <h3 style="color:#1f2937;margin-bottom:15px">🔒 Backup e Armazenamento</h3>
+            <p style="font-size:0.85rem;color:#374151;margin-bottom:6px">📦 Armazenamento persistente: <strong id="persistent-storage-status">verificando...</strong></p>
+            <p style="font-size:0.85rem;color:#374151;margin-bottom:15px" id="last-backup-status">🔄 Backup automático: aguardando...</p>
+            <p style="font-size:0.75rem;color:#6b7280;margin-bottom:15px">Seus dados são salvos automaticamente neste navegador (localStorage + IndexedDB). Use os botões abaixo para ter uma cópia extra fora do navegador.</p>
+            <button class="btn btn-success" onclick="exportFullBackup()">💾 Baixar Backup Completo (.json)</button>
+            <label class="btn btn-warning" style="display:block;text-align:center;cursor:pointer">
+                📂 Restaurar Backup (.json)
+                <input type="file" accept=".json,application/json" onchange="importFullBackupFile(event)" style="display:none">
+            </label>
+        </div>
+        
+        <div class="card">
+            <h3 style="color:#1f2937;margin-bottom:15px">📊 Importar Planilha</h3>
+            <p style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">A planilha deve ter colunas: Data, Tipo (Entrada/Saída), Descrição, Categoria, Valor</p>
+            <label class="btn btn-info" style="display:block;text-align:center;cursor:pointer">
+                📁 Escolher Planilha (.xlsx/.xls)
+                <input type="file" accept=".xlsx,.xls" onchange="importXLSFile(event)" style="display:none">
+            </label>
+        </div>
+        
+        <div class="card">
+            <h3 style="color:#1f2937;margin-bottom:15px">📱 Acessar em Outro Celular</h3>
+            <p style="font-size:0.75rem;color:#6b7280;margin-bottom:10px">Gere um código com seus dados e cole no Meu Finance instalado em outro aparelho.</p>
+            <button class="btn btn-secondary btn-small" onclick="generateBackupCode()">🔑 Gerar Código Deste Aparelho</button>
+            <textarea id="backup-code-output" readonly style="display:none;width:100%;height:90px;margin-top:10px;padding:10px;border-radius:10px;border:2px solid #e5e7eb;font-size:0.65rem;word-break:break-all"></textarea>
+            <button class="btn btn-small" id="copy-code-btn" style="display:none" onclick="copyBackupCode()">📋 Copiar Código</button>
+            <p id="backup-code-info" style="font-size:0.7rem;color:#92400e;margin-top:8px"></p>
+            <hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb">
+            <label style="display:block;margin-bottom:8px;font-weight:600;font-size:0.9rem">Colar código recebido:</label>
+            <textarea id="backup-code-input" placeholder="Cole aqui o código gerado no outro aparelho" style="width:100%;height:90px;padding:10px;border-radius:10px;border:2px solid #e5e7eb;font-size:0.7rem"></textarea>
+            <button class="btn btn-small" onclick="importBackupCode()">📥 Restaurar a Partir do Código</button>
+            <p style="font-size:0.7rem;color:#991b1b;margin-top:10px">⚠️ O código não é criptografado, é apenas um texto com seus dados. Compartilhe só entre seus próprios aparelhos, por um canal seguro.</p>
+        </div>
+    </div>
 </div>
 
 <script>
 if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
-        navigator.serviceWorker.register('sw.js')
-            .then(reg=>console.log('SW registrado!',reg))
-            .catch(err=>console.log('Erro SW:',err));
+        navigator.serviceWorker.register('sw.js').then(reg=>console.log('SW registrado!',reg)).catch(err=>console.log('Erro SW:',err));
     });
 }
 
@@ -296,6 +326,7 @@ let goals=JSON.parse(localStorage.getItem('goals'))||[];
 let pieChart=null;
 let recognition=null;
 let isListening=false;
+let idbInstance=null;
 
 document.addEventListener('DOMContentLoaded',()=>{
     populateMonthSelect();
@@ -303,7 +334,196 @@ document.addEventListener('DOMContentLoaded',()=>{
     toggleCategory();
     updateDashboard();
     initSpeechRecognition();
+    requestPersistentStorage();
+    persistAll();
 });
+
+function idbOpen(){
+    return new Promise(resolve=>{
+        if(!window.indexedDB){resolve(null);return}
+        const req=indexedDB.open('MeuFinanceDB',1);
+        req.onupgradeneeded=e=>{
+            const db=e.target.result;
+            if(!db.objectStoreNames.contains('snapshots'))db.createObjectStore('snapshots');
+        };
+        req.onsuccess=e=>resolve(e.target.result);
+        req.onerror=()=>resolve(null);
+    });
+}
+
+async function idbSave(key,value){
+    try{
+        if(!idbInstance)idbInstance=await idbOpen();
+        if(!idbInstance)return false;
+        return new Promise(resolve=>{
+            const tx=idbInstance.transaction('snapshots','readwrite');
+            tx.objectStore('snapshots').put(value,key);
+            tx.oncomplete=()=>resolve(true);
+            tx.onerror=()=>resolve(false);
+        });
+    }catch(e){return false}
+}
+
+async function requestPersistentStorage(){
+    const el=document.getElementById('persistent-storage-status');
+    if(!el)return;
+    if(navigator.storage&&navigator.storage.persist){
+        try{
+            const already=await navigator.storage.persisted();
+            const granted=already||await navigator.storage.persist();
+            el.textContent=granted?'Ativado ✅':'Não concedido pelo navegador ⚠️';
+        }catch(e){
+            el.textContent='Erro ao verificar';
+        }
+    }else{
+        el.textContent='Não suportado neste navegador';
+    }
+}
+
+async function persistAll(){
+    localStorage.setItem('transactions',JSON.stringify(transactions));
+    localStorage.setItem('bills',JSON.stringify(bills));
+    localStorage.setItem('goals',JSON.stringify(goals));
+    const snapshot={transactions,bills,goals,savedAt:new Date().toISOString()};
+    const ok=await idbSave('backup-automatico',snapshot);
+    const el=document.getElementById('last-backup-status');
+    if(el)el.textContent=ok?`🔄 Backup automático: ${new Date().toLocaleString('pt-BR')}`:'⚠️ Backup automático indisponível neste navegador (dados seguem salvos localmente)';
+}
+
+function exportFullBackup(){
+    const backupData={app:'Meu Finance',version:'2.1',exportedAt:new Date().toISOString(),transactions,bills,goals};
+    const blob=new Blob([JSON.stringify(backupData,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=`meu-finance-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    alert('✅ Backup baixado! Guarde este arquivo em local seguro (e-mail, nuvem etc.)');
+}
+
+function importFullBackupFile(event){
+    const file=event.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+        try{
+            const data=JSON.parse(e.target.result);
+            if(!data.transactions||!data.bills||!data.goals){alert('❌ Arquivo de backup inválido.');return}
+            if(!confirm('Isso substitui todos os dados atuais pelos dados do backup. Continuar?'))return;
+            transactions=data.transactions||[];
+            bills=data.bills||[];
+            goals=data.goals||[];
+            persistAll();
+            updateDashboard();
+            displayAllTransactions();
+            displayAllBills();
+            displayAllGoals();
+            alert('✅ Backup restaurado com sucesso!');
+        }catch(err){
+            alert('❌ Não foi possível ler o arquivo.');
+        }
+    };
+    reader.readAsText(file);
+    event.target.value='';
+}
+
+function generateBackupCode(){
+    const backupData={transactions,bills,goals,exportedAt:new Date().toISOString()};
+    const code=btoa(unescape(encodeURIComponent(JSON.stringify(backupData))));
+    const ta=document.getElementById('backup-code-output');
+    ta.value=code;
+    ta.style.display='block';
+    document.getElementById('copy-code-btn').style.display='block';
+    document.getElementById('backup-code-info').textContent=`Código gerado (${Math.round(code.length/1000)}k caracteres). Copie e cole no outro aparelho.`;
+}
+
+function copyBackupCode(){
+    const ta=document.getElementById('backup-code-output');
+    ta.select();
+    document.execCommand('copy');
+    alert('📋 Código copiado!');
+}
+
+function importBackupCode(){
+    const code=document.getElementById('backup-code-input').value.trim();
+    if(!code){alert('Cole um código primeiro.');return}
+    try{
+        const data=JSON.parse(decodeURIComponent(escape(atob(code))));
+        if(!data.transactions||!data.bills||!data.goals){alert('❌ Código inválido.');return}
+        if(!confirm('Isso substitui todos os dados atuais pelos dados do código. Continuar?'))return;
+        transactions=data.transactions||[];
+        bills=data.bills||[];
+        goals=data.goals||[];
+        persistAll();
+        updateDashboard();
+        displayAllTransactions();
+        displayAllBills();
+        displayAllGoals();
+        document.getElementById('backup-code-input').value='';
+        alert('✅ Dados restaurados!');
+    }catch(err){
+        alert('❌ Código inválido ou corrompido.');
+    }
+}
+
+function importXLSFile(event){
+    const file=event.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+        try{
+            const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+            const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+            if(rows.length===0){alert('❌ Planilha vazia.');return}
+            let imported=0;
+            rows.forEach(row=>{
+                const dataRaw=row['Data']||row['data']||row['DATA'];
+                const tipoRaw=(row['Tipo']||row['tipo']||'').toString().toLowerCase();
+                const descRaw=row['Descrição']||row['Descricao']||row['descricao']||'';
+                const catRaw=row['Categoria']||row['categoria']||'Outros';
+                let valorRaw=row['Valor']||row['valor']||0;
+                if(typeof valorRaw==='string')valorRaw=valorRaw.replace('R$','').replace(/\./g,'').replace(',','.').trim();
+                const amount=parseFloat(valorRaw);
+                const dateStr=parseXLSDate(dataRaw);
+                if(!dateStr||!amount||isNaN(amount))return;
+                const type=tipoRaw.includes('entrada')?'income':'expense';
+                transactions.push({id:Date.now()+Math.random(),type,amount:Math.abs(amount),description:descRaw||'Importado',date:dateStr,category:type==='expense'?(catRaw||'Outros'):'Renda'});
+                imported++;
+            });
+            if(imported>0){
+                persistAll();
+                updateDashboard();
+                displayAllTransactions();
+                alert(`✅ ${imported} transações importadas!`);
+            }else{
+                alert('⚠️ Nenhuma linha reconhecida. Verifique as colunas: Data, Tipo, Descrição, Categoria, Valor.');
+            }
+        }catch(err){
+            console.error(err);
+            alert('❌ Erro ao ler a planilha.');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+    event.target.value='';
+}
+
+function parseXLSDate(value){
+    if(value instanceof Date)return value.toISOString().split('T')[0];
+    if(typeof value==='number'){
+        const d=new Date(Math.round((value-25569)*86400*1000));
+        return d.toISOString().split('T')[0];
+    }
+    if(typeof value==='string'){
+        let m=value.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if(m){let[,d,mo,y]=m;if(y.length===2)y='20'+y;return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`}
+        m=value.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if(m){let[,y,mo,d]=m;return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`}
+    }
+    return null;
+}
 
 function initSpeechRecognition(){
     if('webkitSpeechRecognition' in window||'SpeechRecognition' in window){
@@ -380,22 +600,11 @@ function addVoiceTransaction(type,amount,description){
         document.getElementById('voice-status').innerHTML='<span style="color:#ef4444">❌ Dados inválidos</span>';
         return;
     }
-    
     const category=type==='expense'?'Mercado':'Renda';
     const today=new Date().toISOString().split('T')[0];
-    
-    transactions.push({
-        id:Date.now(),
-        type:type,
-        amount:amount,
-        description:description,
-        date:today,
-        category:category
-    });
-    
-    localStorage.setItem('transactions',JSON.stringify(transactions));
+    transactions.push({id:Date.now(),type,amount,description,date:today,category});
+    persistAll();
     document.getElementById('voice-status').innerHTML='<span style="color:#10b981">✅ Transação adicionada com sucesso!</span>';
-    
     setTimeout(()=>{
         document.getElementById('voice-status').textContent='';
         document.getElementById('voice-transcript').textContent='';
@@ -407,18 +616,12 @@ function exportToPDF(){
     const selectedMonth=document.getElementById('month-select');
     const monthText=selectedMonth.options[selectedMonth.selectedIndex].text;
     const sm=selectedMonth.value;
-    
-    // Calcular dados
     const allUntilMonth=transactions.filter(t=>t.date<=sm+'-31').sort((a,b)=>new Date(a.date)-new Date(b.date));
-    const accumulatedBalance=allUntilMonth.reduce((total,t)=>{
-        return total+(t.type==='income'?t.amount:-t.amount);
-    },0);
-    
+    const accumulatedBalance=allUntilMonth.reduce((total,t)=>total+(t.type==='income'?t.amount:-t.amount),0);
     const filtered=transactions.filter(t=>t.date.startsWith(sm)).sort((a,b)=>new Date(b.date)-new Date(a.date));
     const income=filtered.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const expense=filtered.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
     
-    // Criar conteúdo do relatório
     let content='═══════════════════════════════\n';
     content+='💰 MEU FINANCE - RELATÓRIO\n';
     content+='═══════════════════════════════\n\n';
@@ -433,7 +636,6 @@ function exportToPDF(){
     content+='─────────────────────────────\n';
     content+='TRANSAÇÕES DO MÊS\n';
     content+='─────────────────────────────\n\n';
-    
     filtered.forEach(t=>{
         content+=`📅 ${formatDate(t.date)}\n`;
         content+=`${t.type==='income'?'💰 Entrada':'💸 Saída'}: ${formatCurrency(t.amount)}\n`;
@@ -441,27 +643,14 @@ function exportToPDF(){
         content+=`🏷️ ${t.category}\n`;
         content+='─────────────────────────────\n';
     });
-    
     content+=`\n✅ Total de transações: ${filtered.length}\n`;
     content+=`📱 Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
     
-    // Tentar compartilhar no celular
     if(navigator.share){
         const blob=new Blob([content],{type:'text/plain'});
         const file=new File([blob],`relatorio-${sm}.txt`,{type:'text/plain'});
-        
-        navigator.share({
-            title:`Relatório ${monthText}`,
-            text:`Relatório Financeiro - ${monthText}`,
-            files:[file]
-        }).then(()=>{
-            console.log('Relatório compartilhado com sucesso!');
-        }).catch((error)=>{
-            console.log('Erro ao compartilhar:',error);
-            downloadAsTextFile(content,sm);
-        });
+        navigator.share({title:`Relatório ${monthText}`,text:`Relatório Financeiro - ${monthText}`,files:[file]}).catch(()=>downloadAsTextFile(content,sm));
     }else{
-        // Fallback: Download direto
         downloadAsTextFile(content,sm);
     }
 }
@@ -507,7 +696,7 @@ function toggleCategory(){
 }
 
 function showTab(n){
-    ['dashboard','transactions','bills','goals'].forEach((t,i)=>{
+    ['dashboard','transactions','bills','goals','backup'].forEach((t,i)=>{
         document.getElementById(t).classList.toggle('hidden',t!==n);
         document.querySelectorAll('.tab')[i].classList.toggle('active',t===n);
     });
@@ -519,17 +708,11 @@ function showTab(n){
 
 function updateDashboard(){
     const sm=document.getElementById('month-select').value;
-    
     const allUntilMonth=transactions.filter(t=>t.date<=sm+'-31').sort((a,b)=>new Date(a.date)-new Date(b.date));
-    
-    const previousBalance=allUntilMonth.reduce((total,t)=>{
-        return total+(t.type==='income'?t.amount:-t.amount);
-    },0);
-    
+    const previousBalance=allUntilMonth.reduce((total,t)=>total+(t.type==='income'?t.amount:-t.amount),0);
     const f=transactions.filter(t=>t.date.startsWith(sm)).sort((a,b)=>new Date(b.date)-new Date(a.date));
     const inc=f.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
     const exp=f.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
-    
     document.getElementById('total-income').textContent=formatCurrency(inc);
     document.getElementById('total-expense').textContent=formatCurrency(exp);
     document.getElementById('total-balance').textContent=formatCurrency(previousBalance);
@@ -594,7 +777,7 @@ function saveTransaction(){
     const ca=ty==='expense'?document.getElementById('category').value:'Renda';
     if(!am||!de||!da)return alert('Preencha todos os campos!');
     transactions.push({id:Date.now(),type:ty,amount:am,description:de,date:da,category:ca});
-    localStorage.setItem('transactions',JSON.stringify(transactions));
+    persistAll();
     document.getElementById('amount').value='';
     document.getElementById('description').value='';
     setTodayDate();
@@ -605,7 +788,7 @@ function saveTransaction(){
 function deleteTransaction(id){
     if(confirm('Excluir?')){
         transactions=transactions.filter(t=>t.id!==id);
-        localStorage.setItem('transactions',JSON.stringify(transactions));
+        persistAll();
         displayAllTransactions();
         updateDashboard();
     }
@@ -629,7 +812,7 @@ function saveBill(){
     if(!de||!am||!du)return alert('Preencha todos os campos!');
     if(cu>ins)return alert('Parcela atual não pode ser maior!');
     bills.push({id:Date.now(),description:de,amount:am,installments:ins,current:cu,dueDate:du,category:ca,status:st});
-    localStorage.setItem('bills',JSON.stringify(bills));
+    persistAll();
     document.getElementById('bill-description').value='';
     document.getElementById('bill-amount').value='';
     document.getElementById('bill-installments').value='1';
@@ -643,7 +826,7 @@ function toggleBillStatus(id){
     const b=bills.find(x=>x.id===id);
     if(b){
         b.status=b.status==='paid'?'pending':'paid';
-        localStorage.setItem('bills',JSON.stringify(bills));
+        persistAll();
         displayAllBills();
         updateDashboard();
     }
@@ -652,7 +835,7 @@ function toggleBillStatus(id){
 function deleteBill(id){
     if(confirm('Excluir?')){
         bills=bills.filter(b=>b.id!==id);
-        localStorage.setItem('bills',JSON.stringify(bills));
+        persistAll();
         displayAllBills();
         updateDashboard();
     }
@@ -691,7 +874,7 @@ function saveGoal(){
     const ca=document.getElementById('goal-category').value;
     if(!de||!ta||!dl)return alert('Preencha todos os campos!');
     goals.push({id:Date.now(),description:de,target:ta,current:cu,deadline:dl,category:ca});
-    localStorage.setItem('goals',JSON.stringify(goals));
+    persistAll();
     document.getElementById('goal-description').value='';
     document.getElementById('goal-target').value='';
     document.getElementById('goal-current').value='0';
@@ -708,7 +891,7 @@ function updateGoalProgress(id){
     const am=parseFloat(na);
     if(isNaN(am)||am<=0)return alert('Valor inválido!');
     g.current=Math.min(g.current+am,g.target);
-    localStorage.setItem('goals',JSON.stringify(goals));
+    persistAll();
     displayAllGoals();
     updateDashboard();
 }
@@ -716,7 +899,7 @@ function updateGoalProgress(id){
 function deleteGoal(id){
     if(confirm('Excluir?')){
         goals=goals.filter(g=>g.id!==id);
-        localStorage.setItem('goals',JSON.stringify(goals));
+        persistAll();
         displayAllGoals();
         updateDashboard();
     }
@@ -755,7 +938,4 @@ function formatDate(d){
 }
 </script>
 </body>
-
 </html>
-
-
