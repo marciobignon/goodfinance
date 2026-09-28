@@ -1,11 +1,10 @@
-const CACHE_NAME = 'meu-finance-v2.0.0';
+const CACHE_NAME = 'meu-finance-v2.1.0';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
 // Instalação do Service Worker
